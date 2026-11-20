@@ -193,6 +193,25 @@ tbody tr{border-bottom:1px solid var(--line)}
 .fan p{color:#E4EDF7;line-height:1.6;margin:0;max-width:640px}
 footer{margin-top:44px;background:var(--navy);color:#C9D8EA;padding:26px 0 34px;font-size:.88rem}
 footer a{color:var(--sky)}
+
+/* Fan Comments (preview) */
+
+.comments-form label{display:block;font-weight:700;margin:14px 0 5px}
+.comments-form label:first-child{margin-top:0}
+.comments-form input,.comments-form textarea{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--ink);font:inherit}
+.comments-form textarea{resize:vertical}
+.comments-form .char-hint{color:var(--muted);font-size:.85rem;margin:4px 0 0}
+.comments-form button{margin-top:16px;background:var(--navy);color:#fff;border:0;border-radius:8px;padding:11px 24px;font-weight:700;cursor:pointer;font:inherit}
+.comments-form button:hover{background:var(--navy2)}
+.comments-list{margin-top:8px}
+.comments-empty{color:var(--muted);font-size:.95rem;margin:14px 0 0}
+.comment{margin-top:12px}
+.comment-meta{margin:0 0 6px;color:var(--muted);font-size:.9rem}
+.comment-meta strong{color:var(--ink)}
+
+.comment-text{margin:0;white-space:pre-wrap}
+
+
 </style>
 </head>
 <body>
@@ -343,6 +362,21 @@ footer a{color:var(--sky)}
       <p>The low point of the season… and the turning point. Since that night in Carolina, the Jets won six straight — scoring 32 goals in that run — before falling 2-1 to Ottawa.</p>
       <a class="more" href="https://www.nhl.com/gamecenter/2026020227" target="_blank" rel="noopener">Highlights on NHL.com →</a>
     </div></article>
+  </div>
+</section>
+
+
+<section id="comentarios">
+  <div class="sec-head"><h2>Fan Comments</h2><span>Share your thoughts with Jets fans in Mexico and beyond</span></div>
+  <form id="commentForm" class="card comments-form">
+    <label for="commentName">Name</label>
+    <input id="commentName" name="name" type="text" maxlength="60" required placeholder="Your name">
+    <label for="commentText">Comment</label>
+    <textarea id="commentText" name="comment" maxlength="500" rows="4" required placeholder="What did you think of the 4-3 OT win?"></textarea>
+    <p class="char-hint">Max 500 characters.</p>
+    <button type="submit">Post Comment</button>
+  </form>
+  <div id="commentList" class="comments-list">
   </div>
 </section>
 
@@ -834,6 +868,68 @@ var WORKER_URL = "https://jets-scoreboard-worker.garciasolanapebbies.workers.dev
   if(!isPlaceholder()){
     liveTimer = setInterval(load, 30000);
   }
+})();
+</script>
+
+<script>
+(function(){
+  var COMMENTS_ENDPOINT = 'https://script.google.com/macros/s/AKfycby9zIN_R6qFbW1NpzDbUoAg5gKit1vevYUdIVOS4vz0mDHu3_SZm0_yXJOYRyOKglVE/exec';
+  var list = document.getElementById('commentList');
+  var form = document.getElementById('commentForm');
+  var nameInput = document.getElementById('commentName');
+  var textInput = document.getElementById('commentText');
+  function escapeHtml(s){
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+  }
+  function fmtDate(d){
+    try{
+      return d.toLocaleString('en-US',{timeZone:'America/Cancun',month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'});
+    }catch(e){ return d.toLocaleString(); }
+  }
+  function fmtFecha(f){
+    var d = new Date(f);
+    if(!isNaN(d.getTime())){ return fmtDate(d); }
+    return String(f);
+  }
+  function renderComment(c){
+    var el = document.createElement('article');
+    el.className = 'comment card';
+    el.innerHTML = '<p class="comment-meta"><strong>' + escapeHtml(c.nombre) + '</strong> &middot; <span>' + escapeHtml(fmtFecha(c.fecha)) + '</span></p><p class="comment-text">' + escapeHtml(c.comentario) + '</p>';
+    list.appendChild(el);
+  }
+  function loadComments(){
+    list.innerHTML = '';
+    fetch(COMMENTS_ENDPOINT).then(function(r){ return r.json(); }).then(function(data){
+      if(!data || !data.ok || !Array.isArray(data.comentarios)){ throw new Error('bad response'); }
+      if(data.comentarios.length === 0){
+        list.innerHTML = '<p class="comments-empty">Be the first to share your thoughts!</p>';
+        return;
+      }
+      data.comentarios.slice().reverse().forEach(function(c){ renderComment(c); });
+    }).catch(function(){
+      list.innerHTML = '<p class="comments-empty">Comments couldn\'t load right now. Please try again later.</p>';
+    });
+  }
+  form.addEventListener('submit', function(ev){
+    ev.preventDefault();
+    var name = nameInput.value.trim().slice(0, 60);
+    var text = textInput.value.trim().slice(0, 500);
+    if(!name || !text){ alert('Please write your name and a comment.'); return; }
+    var fecha = new Date().toLocaleString('es-MX', {timeZone: 'America/Cancun'});
+    fetch(COMMENTS_ENDPOINT, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: {'Content-Type': 'text/plain'},
+      body: JSON.stringify({nombre: name, comentario: text, fecha: fecha})
+    }).then(function(){
+      alert('Thanks! Your comment was posted.');
+      form.reset();
+      setTimeout(loadComments, 1500);
+    }).catch(function(){
+      alert('Your comment could not be posted. Please try again later.');
+    });
+  });
+  loadComments();
 })();
 </script>
 </body>
